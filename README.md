@@ -30,21 +30,21 @@ Ingests real-time GPS positions from 500+ active AC Transit buses every 5 second
 ---
 
 ## Architecture
-511 SF Bay API (GTFS-RT standard)
-|
-Python Publisher
-polls every 5 seconds
-|
-Redis Message Queue  <-- equivalent to GCP Pub/Sub / AWS SQS
-|
+511 SF Bay API (GTFS-RT)
+↓
+Python Publisher (every 5s)
+↓
+Redis Message Queue
+(local equivalent of GCP Pub/Sub / AWS SQS)
+↓
 Python Subscriber
-validate + transform + load
-|
+(validate + transform + load)
+↓
 PostgreSQL Database
-breadcrumb + trip tables
-|
+(breadcrumb + trip tables)
+↓
 Python REST API
-|
+↓
 MapboxGL Visualization
 ---
 
