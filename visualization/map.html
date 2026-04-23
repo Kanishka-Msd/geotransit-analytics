@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoTransit Analytics — SF Bay Area</title>
+
+    <!-- MapboxGL CSS & JS — same library used in your TriMet project -->
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.2.0/mapbox-gl.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        header {
+            background: #111111;
+            border-bottom: 1px solid #222;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            z-index: 10;
+        }
+
+        header h1 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #ffffff;
+            letter-spacing: -0.3px;
+        }
+
+        header h1 span {
+            color: #3b82f6;
+        }
+
+        .header-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: #3b82f6;
+        }
+
+        .stat-label {
+            font-size: 10px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ── Main Layout ── */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* ── Map ── */
+        #map {
+            flex: 1;
+            height: 100%;
+        }
+
+        /* ── Sidebar ── */
+        .sidebar {
+            width: 280px;
+            background: #111111;
+            border-left: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .sidebar-section {
+            padding: 16px;
+            border-bottom: 1px solid #1a1a1a;
+        }
+
+        .sidebar-section h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        /* ── Speed Legend ── */
+        .legend {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: #aaa;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* ── Route Table ── */
+        .route-table {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+
+        .route-table h3 {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #555;
+            margin-bottom: 12px;
+        }
+
+        .route-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #1a1a1a;
+            font-size: 13px;
+        }
+
+        .route-badge {
+            background: #1a1a2e;
+            color: #3b82f6;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            font-size: 12px;
+        }
+
+        .route-speed {
+            color: #aaa;
+        }
+
+        .route-pings {
+            color: #555;
+            font-size: 11px;
+        }
+
+        /* ── Controls ── */
+        .controls {
+            padding: 16px;
+            border-top: 1px solid #222;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        button {
+            padding: 10px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        button:hover { opacity: 0.85; }
+
+        .btn-primary {
+            background: #3b82f6;
+            color: white;
+        }
+
+        .btn-secondary {
+            background: #1a1a1a;
+            color: #aaa;
+            border: 1px solid #333;
+        }
+
+        /* ── Popup ── */
+        .mapboxgl-popup-content {
+            background: #1a1a1a !important;
+            color: #fff !important;
+            border: 1px solid #333 !important;
+            border-radius: 8px !important;
+            padding: 12px !important;
+            font-family: -apple-system, sans-serif !important;
+            min-width: 180px;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 8px;
+            color: #3b82f6;
+        }
+
+        .popup-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 12px;
+            color: #aaa;
+            margin: 3px 0;
+        }
+
+        .popup-row span:last-child {
+            color: #fff;
+        }
+
+        /* ── Loading ── */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: #111;
+            border: 1px solid #333;
+            border-radius: 12px;
+            padding: 24px 32px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        #loading h2 { color: #3b82f6; margin-bottom: 8px; }
+        #loading p  { color: #666; font-size: 13px; }
+
+        .spinner {
+            width: 32px;
+            height: 32px;
+            border: 3px solid #333;
+            border-top-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>Geo<span>Transit</span> Analytics <span style="color:#555;font-size:13px;font-weight:400">— SF Bay Area / AC Transit</span></h1>
+    <div class="header-stats">
+        <div class="stat">
+            <div class="stat-value" id="stat-buses">—</div>
+            <div class="stat-label">Active Buses</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-pings">—</div>
+            <div class="stat-label">GPS Pings</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-routes">—</div>
+            <div class="stat-label">Routes</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="stat-avgspeed">—</div>
+            <div class="stat-label">Avg Speed m/s</div>
+        </div>
+    </div>
+</header>
+
+<div class="main">
+    <div id="map"></div>
+
+    <div class="sidebar">
+        <!-- Speed Legend -->
+        <div class="sidebar-section">
+            <h3>Speed Legend</h3>
+            <div class="legend">
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#ef4444"></div>
+                    <span>Stopped / Very slow (0–2 m/s)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#f97316"></div>
+                    <span>Slow (2–5 m/s)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#eab308"></div>
+                    <span>Moderate (5–8 m/s)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#22c55e"></div>
+                    <span>Fast (8–12 m/s)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-dot" style="background:#3b82f6"></div>
+                    <span>Very fast (12+ m/s)</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Route Analytics -->
+        <div class="route-table">
+            <h3>Top Routes by Speed</h3>
+            <div id="route-list">
+                <div style="color:#555;font-size:13px">Loading routes...</div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="controls">
+            <button class="btn-primary" onclick="loadData()">🔄 Refresh Data</button>
+            <button class="btn-secondary" onclick="toggleHeatmap()">🌡️ Toggle Heatmap</button>
+        </div>
+    </div>
+</div>
+
+<!-- Loading overlay -->
+<div id="loading">
+    <div class="spinner"></div>
+    <h2>Loading Bus Data</h2>
+    <p>Fetching from PostgreSQL...</p>
+</div>
+
+<script>
+// ─────────────────────────────────────────────
+// CONFIGURATION
+// ─────────────────────────────────────────────
+// Get your free token at https://account.mapbox.com
+// Then replace YOUR_MAPBOX_TOKEN_HERE below
+// PASTE YOUR MAPBOX TOKEN HERE
+mapboxgl.accessToken = 'YOUR_MAPBOX_TOKEN_HERE';
+
+// Our data API endpoint (we'll run a simple Python server)
+const API_BASE = 'http://localhost:8000';
+
+// ─────────────────────────────────────────────
+// INITIALIZE MAP
+// Centered on Fremont/Bay Area
+// ─────────────────────────────────────────────
+const map = new mapboxgl.Map({
+    container: 'map',
+    style:     'mapbox://styles/mapbox/dark-v11',
+    center:    [-122.2, 37.75],   // Bay Area center
+    zoom:      10,
+    pitch:     0
+});
+
+map.addControl(new mapboxgl.NavigationControl(), 'top-left');
+
+let heatmapVisible = false;
+let allBusData     = [];
+
+// ─────────────────────────────────────────────
+// SPEED → COLOR
+// This is exactly what your TriMet project did
+// red=slow, green=fast
+// ─────────────────────────────────────────────
+function speedToColor(speed) {
+    if (speed <= 0)  return '#ef4444';   // red    — stopped
+    if (speed <= 2)  return '#ef4444';   // red    — very slow
+    if (speed <= 5)  return '#f97316';   // orange — slow
+    if (speed <= 8)  return '#eab308';   // yellow — moderate
+    if (speed <= 12) return '#22c55e';   // green  — fast
+    return '#3b82f6';                    // blue   — very fast
+}
+
+// ─────────────────────────────────────────────
+// LOAD DATA FROM PYTHON API SERVER
+// ─────────────────────────────────────────────
+async function loadData() {
+    document.getElementById('loading').style.display = 'block';
+
+    try {
+        // Fetch latest bus positions
+        const res  = await fetch(`${API_BASE}/buses`);
+        const data = await res.json();
+        allBusData = data.buses;
+
+        // Update header stats
+        document.getElementById('stat-buses').textContent =
+            data.stats.total_buses.toLocaleString();
+        document.getElementById('stat-pings').textContent =
+            data.stats.total_pings.toLocaleString();
+        document.getElementById('stat-routes').textContent =
+            data.stats.total_routes.toLocaleString();
+        document.getElementById('stat-avgspeed').textContent =
+            data.stats.avg_speed.toFixed(2);
+
+        // Plot buses on map
+        plotBuses(allBusData);
+
+        // Load route analytics in sidebar
+        loadRoutes();
+
+    } catch (err) {
+        alert('Could not connect to data server.\n' +
+              'Make sure api_server.py is running:\n' +
+              'python3 visualization/api_server.py');
+        console.error(err);
+    } finally {
+        document.getElementById('loading').style.display = 'none';
+    }
+}
+
+// ─────────────────────────────────────────────
+// PLOT BUSES ON MAP
+// Each bus = colored circle based on speed
+// ─────────────────────────────────────────────
+function plotBuses(buses) {
+    // Remove existing markers
+    document.querySelectorAll('.bus-marker').forEach(m => m.remove());
+
+    buses.forEach(bus => {
+        // Create colored circle marker
+        const el       = document.createElement('div');
+        el.className   = 'bus-marker';
+        el.style.cssText = `
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: ${speedToColor(bus.speed)};
+            border: 1.5px solid rgba(255,255,255,0.3);
+            cursor: pointer;
+        `;
+
+        // Popup shown on click — shows bus details
+        const popup = new mapboxgl.Popup({ offset: 15 })
+            .setHTML(`
+                <div class="popup-title">🚌 Route ${bus.route_id || 'N/A'}</div>
+                <div class="popup-row">
+                    <span>Vehicle ID</span>
+                    <span>${bus.vehicle_id}</span>
+                </div>
+                <div class="popup-row">
+                    <span>Speed</span>
+                    <span>${bus.speed.toFixed(2)} m/s</span>
+                </div>
+                <div class="popup-row">
+                    <span>Speed (mph)</span>
+                    <span>${(bus.speed * 2.237).toFixed(1)} mph</span>
+                </div>
+                <div class="popup-row">
+                    <span>Heading</span>
+                    <span>${bus.heading}°</span>
+                </div>
+                <div class="popup-row">
+                    <span>Last Seen</span>
+                    <span>${new Date(bus.tstamp).toLocaleTimeString()}</span>
+                </div>
+                <div class="popup-row">
+                    <span>Location</span>
+                    <span>${bus.latitude.toFixed(4)}, ${bus.longitude.toFixed(4)}</span>
+                </div>
+            `);
+
+        new mapboxgl.Marker(el)
+            .setLngLat([bus.longitude, bus.latitude])
+            .setPopup(popup)
+            .addTo(map);
+    });
+}
+
+// ─────────────────────────────────────────────
+// LOAD ROUTE ANALYTICS IN SIDEBAR
+// ─────────────────────────────────────────────
+async function loadRoutes() {
+    try {
+        const res    = await fetch(`${API_BASE}/routes`);
+        const data   = await res.json();
+        const routes = data.routes;
+
+        const html = routes.map(r => `
+            <div class="route-row">
+                <span class="route-badge">${r.route_id || '?'}</span>
+                <span class="route-speed"
+                      style="color:${speedToColor(r.avg_speed)}">
+                    ${r.avg_speed.toFixed(2)} m/s
+                </span>
+                <span class="route-pings">${r.total_pings} pings</span>
+            </div>
+        `).join('');
+
+        document.getElementById('route-list').innerHTML = html;
+
+    } catch (err) {
+        console.error('Could not load routes:', err);
+    }
+}
+
+// ─────────────────────────────────────────────
+// TOGGLE HEATMAP
+// Shows density of bus activity across the city
+// ─────────────────────────────────────────────
+function toggleHeatmap() {
+    if (!map.getSource('buses-heat')) {
+        // Add heatmap source from current bus positions
+        map.addSource('buses-heat', {
+            type: 'geojson',
+            data: {
+                type: 'FeatureCollection',
+                features: allBusData.map(b => ({
+                    type: 'Feature',
+                    geometry: {
+                        type: 'Point',
+                        coordinates: [b.longitude, b.latitude]
+                    },
+                    properties: { speed: b.speed }
+                }))
+            }
+        });
+
+        map.addLayer({
+            id:     'buses-heatmap',
+            type:   'heatmap',
+            source: 'buses-heat',
+            paint: {
+                'heatmap-weight': [
+                    'interpolate', ['linear'],
+                    ['get', 'speed'], 0, 0, 15, 1
+                ],
+                'heatmap-color': [
+                    'interpolate', ['linear'],
+                    ['heatmap-density'],
+                    0,   'rgba(0,0,0,0)',
+                    0.3, '#ef4444',
+                    0.6, '#eab308',
+                    1.0, '#22c55e'
+                ],
+                'heatmap-radius': 20,
+                'heatmap-opacity': 0.7
+            }
+        });
+
+        heatmapVisible = true;
+    } else {
+        // Toggle visibility
+        heatmapVisible = !heatmapVisible;
+        map.setLayoutProperty(
+            'buses-heatmap',
+            'visibility',
+            heatmapVisible ? 'visible' : 'none'
+        );
+    }
+}
+
+// ─────────────────────────────────────────────
+// AUTO REFRESH EVERY 30 SECONDS
+// ─────────────────────────────────────────────
+map.on('load', () => {
+    loadData();
+    setInterval(loadData, 30000);
+});
+</script>
+</body>
+</html>
